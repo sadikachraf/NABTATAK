@@ -246,6 +246,22 @@ footer strong{color:rgba(255,255,255,.7)}
 .reveal.on{opacity:1;transform:translateY(0)}
 
 @media(min-width:600px){.plants-grid{grid-template-columns:repeat(5,1fr)}}
+/* ── THANK YOU OVERLAY ── */
+.ty-overlay{position:fixed;inset:0;background:rgba(14,35,24,.75);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .35s ease}
+.ty-overlay.show{opacity:1;pointer-events:all}
+.ty-box{background:var(--cream);border-radius:24px;padding:36px 28px;max-width:400px;width:100%;text-align:center;transform:translateY(30px) scale(.96);transition:transform .35s ease;border-top:4px solid var(--gold);box-shadow:0 24px 64px rgba(0,0,0,.3)}
+.ty-overlay.show .ty-box{transform:translateY(0) scale(1)}
+.ty-icon{font-size:56px;margin-bottom:12px;display:block;animation:pop .4s .2s both cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.ty-title{font-size:22px;font-weight:700;color:var(--forest);margin-bottom:8px}
+.ty-sub{font-size:14px;color:var(--text-soft);line-height:1.7;font-weight:300;margin-bottom:20px}
+.ty-order{background:var(--ivory);border-radius:14px;padding:14px 16px;margin-bottom:20px;text-align:right}
+.ty-row{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--text-mid);border-bottom:1px solid var(--ivory-dark)}
+.ty-row:last-child{border-bottom:none}
+.ty-row span:first-child{color:var(--text-soft)}
+.ty-row span:last-child{font-weight:600;color:var(--forest)}
+.ty-close{width:100%;padding:14px;background:linear-gradient(135deg,var(--sage),var(--forest));color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
+
 </style>
 </head>
 <body>
@@ -580,7 +596,6 @@ function handleOrder(){
   const now = new Date();
   const orderDate = now.toLocaleString('en-GB',{timeZone:'Asia/Qatar',hour12:false});
 
-  // ── PAYLOAD — matches your sheet columns exactly ──
   const payload = {
     OrderDate       : orderDate,
     country         : 'Qatar',
@@ -608,9 +623,9 @@ function handleOrder(){
     mode   : 'no-cors',
     headers: { 'Content-Type': 'application/json' },
     body   : JSON.stringify(payload)
-  }).catch(()=>{}); // silent fail — order still goes through
+  }).catch(()=>{});
 
-  // ── PURCHASE EVENTS ──
+  // ── PURCHASE EVENTS (fire when thank you shows) ──
   if(typeof fbq!=='undefined')
     fbq('track','Purchase',{value:cur.price,currency:'QAR',content_name:cur.name,content_type:'product'});
   if(typeof ttq!=='undefined')
@@ -618,15 +633,20 @@ function handleOrder(){
   if(typeof snaptr!=='undefined')
     snaptr('track','PURCHASE',{price:cur.price,currency:'QAR',item_ids:[cur.name]});
 
-  // ── UI FEEDBACK ──
-  const btn = document.querySelector('.sub-btn');
-  btn.textContent = '✅ تم استلام طلبك! سنتصل بك قريباً';
-  btn.style.background = 'linear-gradient(135deg,#3a7d52,#0e2318)';
-  btn.disabled = true;
+  // ── SHOW THANK YOU OVERLAY ──
+  document.getElementById('tyOrder').innerHTML =
+    `<div class="ty-row"><span>الاسم</span><span>${name}</span></div>` +
+    `<div class="ty-row"><span>الجوال</span><span>${phone}</span></div>` +
+    `<div class="ty-row"><span>المنطقة</span><span>${city}</span></div>` +
+    `<div class="ty-row"><span>الطلب</span><span>${cur.name}</span></div>` +
+    `<div class="ty-row"><span>السعر</span><span>${cur.price} ر.ق</span></div>` +
+    `<div class="ty-row"><span>الدفع</span><span>عند الاستلام ✅</span></div>`;
+  document.getElementById('tyOverlay').classList.add('show');
 
-  // ← Replace 97400000000 with your WhatsApp number
-  const msg = `🌿 طلب جديد - نبتتك\n\nالاسم: ${name}\nالجوال: ${phone}\nالمنطقة: ${city}\nالطلب: ${cur.name}\nالسعر: ${cur.price} ر.ق\n\nالدفع عند الاستلام ✅`;
-  setTimeout(()=>window.open(`https://wa.me/97400000000?text=${encodeURIComponent(msg)}`,'_blank'), 600);
+  // Disable button so they can't double-submit
+  const btn = document.querySelector('.sub-btn');
+  btn.textContent = '✅ تم إرسال طلبك';
+  btn.disabled = true;
 }
 
 // COUNTDOWN
@@ -658,5 +678,16 @@ function toggleFaq(el){el.classList.toggle('open')}
 // SCROLL
 function scrollToOrder(){document.getElementById('order').scrollIntoView({behavior:'smooth',block:'start'});}
 </script>
+
+<!-- THANK YOU OVERLAY -->
+<div class="ty-overlay" id="tyOverlay">
+  <div class="ty-box">
+    <span class="ty-icon">✅</span>
+    <div class="ty-title">تم استلام طلبك بنجاح!</div>
+    <p class="ty-sub">شكراً لك — سيتواصل معك فريقنا قريباً لتأكيد الطلب وتحديد موعد التوصيل</p>
+    <div class="ty-order" id="tyOrder"></div>
+    <button class="ty-close" onclick="document.getElementById('tyOverlay').classList.remove('show')">حسناً، شكراً 🌿</button>
+  </div>
+</div>
 </body>
 </html>
