@@ -553,37 +553,80 @@ function selectPkg(id,name,price){
   document.getElementById('stickyPrice').textContent=price+' ر.ق';
 }
 
+// ── UTM CAPTURE (reads from URL on page load) ──
+const utmParams=(function(){
+  const p=new URLSearchParams(window.location.search);
+  return {
+    source  : p.get('utm_source')   ||'',
+    medium  : p.get('utm_medium')   ||'',
+    campaign: p.get('utm_campaign') ||'',
+    term    : p.get('utm_term')     ||'',
+    content : p.get('utm_content')  ||''
+  };
+})();
+
+// ── SHEET WEBHOOK — paste your Apps Script URL here ──
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbzbz9cls2YZCeLu6D_qDga45g9ipL0KDHhXuHRHB9cETRsN0kEGon9aokF9F0eiLV0N/exec';
+
 // SUBMIT
 function handleOrder(){
-  const name=document.getElementById('fname').value.trim();
-  const phone=document.getElementById('fphone').value.trim();
-  const city=document.getElementById('fcity').value.trim();
-  if(!name){alert('الرجاء إدخال اسمك الكريم');return}
-  if(!phone){alert('الرجاء إدخال رقم الجوال');return}
-  if(!city){alert('الرجاء إدخال منطقتك');return}
-  const msg=`🌿 طلب جديد - نبتتك\n\nالاسم: ${name}\nالجوال: ${phone}\nالمنطقة: ${city}\nالطلب: ${cur.name}\nالسعر: ${cur.price} ر.ق\n\nالدفع عند الاستلام ✅`;
+  const name  = document.getElementById('fname').value.trim();
+  const phone = document.getElementById('fphone').value.trim();
+  const city  = document.getElementById('fcity').value.trim();
+  if(!name) { alert('الرجاء إدخال اسمك الكريم'); return; }
+  if(!phone){ alert('الرجاء إدخال رقم الجوال');  return; }
+  if(!city) { alert('الرجاء إدخال منطقتك');       return; }
 
-  // ── PURCHASE EVENTS ──────────────────────────
-  // META
-  if(typeof fbq!=='undefined'){
+  const now = new Date();
+  const orderDate = now.toLocaleString('en-GB',{timeZone:'Asia/Qatar',hour12:false});
+
+  // ── PAYLOAD — matches your sheet columns exactly ──
+  const payload = {
+    OrderDate       : orderDate,
+    country         : 'Qatar',
+    name            : name,
+    phone           : phone,
+    address         : city,
+    national_address: city,
+    url             : window.location.href,
+    sku             : 'LESSUPDEPLAN',
+    Product         : 'أقراص تغذية النباتات - ' + cur.name,
+    quantity        : cur.id === 2 ? 6 : cur.id === 1 ? 3 : 1,
+    price           : cur.price,
+    currency        : 'QAR',
+    notes           : '',
+    utm_source      : utmParams.source,
+    utm_medium      : utmParams.medium,
+    utm_campaign    : utmParams.campaign,
+    utm_term        : utmParams.term,
+    utm_content     : utmParams.content
+  };
+
+  // ── SEND TO GOOGLE SHEET ──
+  fetch(SHEET_URL, {
+    method : 'POST',
+    mode   : 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify(payload)
+  }).catch(()=>{}); // silent fail — order still goes through
+
+  // ── PURCHASE EVENTS ──
+  if(typeof fbq!=='undefined')
     fbq('track','Purchase',{value:cur.price,currency:'QAR',content_name:cur.name,content_type:'product'});
-  }
-  // TIKTOK
-  if(typeof ttq!=='undefined'){
+  if(typeof ttq!=='undefined')
     ttq.track('PlaceAnOrder',{value:cur.price,currency:'QAR',content_name:cur.name,content_type:'product'});
-  }
-  // SNAPCHAT
-  if(typeof snaptr!=='undefined'){
+  if(typeof snaptr!=='undefined')
     snaptr('track','PURCHASE',{price:cur.price,currency:'QAR',item_ids:[cur.name]});
-  }
-  // ─────────────────────────────────────────────
 
-  const btn=document.querySelector('.sub-btn');
-  btn.textContent='✅ تم استلام طلبك! سنتصل بك قريباً';
-  btn.style.background='linear-gradient(135deg,#3a7d52,#0e2318)';
-  btn.disabled=true;
+  // ── UI FEEDBACK ──
+  const btn = document.querySelector('.sub-btn');
+  btn.textContent = '✅ تم استلام طلبك! سنتصل بك قريباً';
+  btn.style.background = 'linear-gradient(135deg,#3a7d52,#0e2318)';
+  btn.disabled = true;
+
   // ← Replace 97400000000 with your WhatsApp number
-  setTimeout(()=>window.open(`https://wa.me/97400000000?text=${encodeURIComponent(msg)}`, '_blank'),600);
+  const msg = `🌿 طلب جديد - نبتتك\n\nالاسم: ${name}\nالجوال: ${phone}\nالمنطقة: ${city}\nالطلب: ${cur.name}\nالسعر: ${cur.price} ر.ق\n\nالدفع عند الاستلام ✅`;
+  setTimeout(()=>window.open(`https://wa.me/97400000000?text=${encodeURIComponent(msg)}`,'_blank'), 600);
 }
 
 // COUNTDOWN
